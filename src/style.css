@@ -1,0 +1,6 @@
+.affected-marker {
+  stroke-width: 1;
+  stroke: rgb(250, 248, 248);
+  fill: rgb(19, 236, 153);
+  fill-opacity: 0.7;
+}
