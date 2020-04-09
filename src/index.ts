@@ -1,66 +1,46 @@
 import * as d3 from "d3";
 import * as topojson from "topojson-client";
-import { latLongCommunities } from "./communities";
-const spainjson = require("./data/spain.json");
+import * as d3slider from "d3-simple-slider";
+const usajson = require("./data/usa.json");
 const d3Composite = require("d3-composite-projections");
-import { infectedFebruary, infectedMarch, ResultEntry } from "./stats";
+import { latLongStates } from "./data/states";
+import { confirmed } from "./data/confirmed";
 
-// set the affected color scale
-var color = d3
-  .scaleThreshold<number, string>()
-  .domain([0, 20, 500, 1000, 2000, 5000, 9000])
-  .range([
-    "#ffffff",
-    "#cfc5e5",
-    "#a78cc7",
-    "#8652a5",
-    "#923BA4",
-    "#68007e",
-    "#000000"
-  ]);
+var dataTime = d3
+  .range(0, Object.keys(confirmed[0]).length - 1)
+  .map(function (d) {
+    return new Date(2020, 0, d + 22);
+  });
 
-const assignCCAABackgroundColor = (
-  CCAAName: string,
-  infected: ResultEntry[]
-) => {
-  const item = infected.find(item => item.name === CCAAName);
-  return item ? color(item.value) : color(0);
-};
+var sliderTime = d3slider
+  .sliderBottom()
+  .min(d3.min(dataTime))
+  .max(d3.max(dataTime))
+  .step(Object.keys(confirmed[0]).length - 1)
+  .width(800)
+  .tickFormat(d3.timeFormat("%m/%d/%Y"))
+  .tickValues(dataTime)
+  .default(new Date(2020, 0, 22))
+  .on("onchange", (val) => {
+    var index = val.toLocaleDateString('en-US')
+    d3
+    .select("p#value-time")
+    .text(index);
+    console.log(confirmed[0].Province_State);
+  });
 
-const updateCCAABackground = (infected: ResultEntry[]) => {
-  const paths = svg.selectAll("path")
-  paths
-  .style("fill", function(d: any) {
-    return assignCCAABackgroundColor(d.properties.NAME_1, infected);
-  })
-  .attr("d", geoPath as any);
-};
+var gTime = d3
+  .select("div#slider-time")
+  .append("svg")
+  .attr("width", 1000)
+  .attr("height", 100)
+  .append("g")
+  .attr("transform", "translate(30,30)");
 
-const calculateRadiusBasedOnAffectedCases = (comunidad: string, data: ResultEntry[]) => {
-  const entry = data.find(item => item.name === comunidad);
+gTime.call(sliderTime);
 
-  const maxAffected = data.reduce(
-    (max, item) => (item.value > max ? item.value : max),
-    0
-  );
-
-const affectedRadiusScale = d3
-    .scaleLinear()
-    .domain([0, maxAffected])
-    .clamp(true)
-    .range([1, 50]);
-  return entry ? affectedRadiusScale(entry.value) : 0;
-};
-
-const updateCircles = (data: ResultEntry[]) => {
-  const circles = svg.selectAll("circle");
-  circles
-    .data(latLongCommunities)
-    .merge(circles as any)
-    .transition()
-    .duration(500)
-    .attr("r", d => calculateRadiusBasedOnAffectedCases(d.name, data));
-};
+d3.select("p#value-time").text(confirmed[0]["1/22/20"]);
+console.log(sliderTime.value().toLocaleDateString('en-US'));
 
 const svg = d3
   .select("body")
@@ -70,45 +50,27 @@ const svg = d3
   .attr("style", "background-color: #FBFAF0");
 
 const aProjection = d3Composite
-  .geoConicConformalSpain()
-  .scale(3300)
-  .translate([500, 400]);
+  .geoAlbersUsa()
+  .scale(1300)
+  .translate([487.5, 305]);
 
 const geoPath = d3.geoPath().projection(aProjection);
-const geojson = topojson.feature(spainjson, spainjson.objects.ESP_adm1);
+const geojson = topojson.feature(usajson, usajson.objects.states);
 
-// Let's paint first the map
 svg
   .selectAll("path")
   .data(geojson["features"])
   .enter()
   .append("path")
-  .style("fill", function(d: any) {
-    return assignCCAABackgroundColor(d.properties.NAME_1, infectedFebruary);
-  })
+  .attr("class", "country")
   .attr("d", geoPath as any);
 
-  svg
+svg
   .selectAll("circle")
-  .data(latLongCommunities)
+  .data(latLongStates)
   .enter()
   .append("circle")
   .attr("class", "affected-marker")
-  .attr("r", 15)
-  .attr("r", d => calculateRadiusBasedOnAffectedCases(d.name, infectedFebruary))
-  .attr("cx", d => aProjection([d.long, d.lat])[0])
-  .attr("cy", d => aProjection([d.long, d.lat])[1]);
-
-document
-  .getElementById("init")
-  .addEventListener("click", function handleInfectedFebruary() {
-    updateCCAABackground(infectedFebruary);
-    updateCircles(infectedFebruary);
-  });
-
-document
-  .getElementById("actual")
-  .addEventListener("click", function handleInfectedMarch() {
-    updateCCAABackground(infectedMarch);
-    updateCircles(infectedMarch);
-  });
+  .attr("r", 10)
+  .attr("cx", (d) => aProjection([d.long, d.lat])[0])
+  .attr("cy", (d) => aProjection([d.long, d.lat])[1]);
